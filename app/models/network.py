@@ -19,4 +19,5 @@ class NetworkRequest(BaseModel):
 class NetworkResponse(BaseModel):
     match: Optional[str]
     similarity: Optional[float]
+    network_id: Optional[int]
     message: str 

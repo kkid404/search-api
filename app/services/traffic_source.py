@@ -16,20 +16,25 @@ SLANG_DICT = {
     "легко": "easy",
 }
 
-async def fetch_groups(group_type: str = "campaigns") -> List[Dict[str, Any]]:
-    # Используем корректный URL для API групп
+async def fetch_traffic_sources(source_type: str = None) -> List[Dict[str, Any]]:
+    # URL для API источников трафика
+    traffic_sources_url = f"{API_URL}/traffic_sources"
+    
+    params = {}
+    if source_type:
+        params["type"] = source_type
     
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{API_URL}/groups",
-            params={"type": group_type},
+            traffic_sources_url,
+            params=params,
             headers={
                 "accept": "application/json",
                 "Api-Key": API_KEY
             }
         )
         if response.status_code != 200:
-            raise HTTPException(status_code=500, detail=f"Failed to fetch groups: {response.text}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch traffic sources: {response.text}")
         
         return response.json()
 
@@ -53,10 +58,10 @@ def get_slang_equivalents(word: str) -> List[str]:
     
     return result
 
-async def search_groups_by_substring(substring: str, group_type: str = "campaigns") -> List[Dict[str, Any]]:
+async def search_traffic_sources_by_substring(substring: str, source_type: str = None) -> List[Dict[str, Any]]:
     # Используем unquote_plus вместо unquote для правильной обработки знака +
     decoded_substring = urllib.parse.unquote_plus(substring).strip()
-    logger.info(f"Decoded substring for search: '{decoded_substring}'")
+    logger.info(f"Decoded substring for traffic source search: '{decoded_substring}'")
     
     # Транслитерируем поисковую строку
     translit_substring = translit(decoded_substring, 'ru', reversed=True)
@@ -84,39 +89,39 @@ async def search_groups_by_substring(substring: str, group_type: str = "campaign
     norm_search = normalize_text(decoded_substring)
     norm_translit = normalize_text(translit_substring)
     
-    groups = await fetch_groups(group_type)
-    logger.info(f"Total groups fetched: {len(groups)}")
+    sources = await fetch_traffic_sources(source_type)
+    logger.info(f"Total traffic sources fetched: {len(sources)}")
     
     # Три способа поиска с разной степенью гибкости
-    filtered_groups = []
-    for group in groups:
-        group_name = group.get("name", "")
-        group_name_lower = group_name.lower()
-        group_name_translit = translit(group_name, 'ru', reversed=True).lower()
+    filtered_sources = []
+    for source in sources:
+        source_name = source.get("name", "")
+        source_name_lower = source_name.lower()
+        source_name_translit = translit(source_name, 'ru', reversed=True).lower()
         
         # 1. Точное вхождение всей подстроки (включая транслитерацию и сленг)
-        if decoded_substring.lower() in group_name_lower or translit_substring.lower() in group_name_lower:
-            logger.info(f"Exact match found: '{group_name}' contains '{decoded_substring}' or '{translit_substring}'")
-            filtered_groups.append(group)
+        if decoded_substring.lower() in source_name_lower or translit_substring.lower() in source_name_lower:
+            logger.info(f"Exact match found: '{source_name}' contains '{decoded_substring}' or '{translit_substring}'")
+            filtered_sources.append(source)
             continue
             
         # 2. Нормализованный поиск (игнорируем пробелы, дефисы и т.д.)
-        norm_group_name = normalize_text(group_name)
-        if norm_search in norm_group_name or norm_translit in norm_group_name:
-            logger.info(f"Normalized match found: '{norm_group_name}' contains '{norm_search}' or '{norm_translit}'")
-            filtered_groups.append(group)
+        norm_source_name = normalize_text(source_name)
+        if norm_search in norm_source_name or norm_translit in norm_source_name:
+            logger.info(f"Normalized match found: '{norm_source_name}' contains '{norm_search}' or '{norm_translit}'")
+            filtered_sources.append(source)
             continue
             
         # 3. Поиск по отдельным словам (подходит, если хотя бы ОДНО слово найдено)
         for word in all_search_words:
-            if word in group_name_lower or word in group_name_translit:
-                logger.info(f"Word match found: '{group_name}' contains word '{word}'")
-                filtered_groups.append(group)
+            if word in source_name_lower or word in source_name_translit:
+                logger.info(f"Word match found: '{source_name}' contains word '{word}'")
+                filtered_sources.append(source)
                 break
     
-    logger.info(f"Filtered groups count: {len(filtered_groups)}")
-    if filtered_groups:
-        group_names = [g.get('name', 'No name') for g in filtered_groups[:3]]
-        logger.info(f"First matches: {', '.join(group_names)}")
+    logger.info(f"Filtered traffic sources count: {len(filtered_sources)}")
+    if filtered_sources:
+        source_names = [s.get('name', 'No name') for s in filtered_sources[:3]]
+        logger.info(f"First matches: {', '.join(source_names)}")
     
-    return filtered_groups 
+    return filtered_sources 

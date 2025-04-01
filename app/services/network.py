@@ -1,11 +1,9 @@
 import httpx
-from typing import List
+from typing import List, Dict, Any
 from fastapi import HTTPException
 from app.config import API_KEY, API_URL
 
-async def fetch_networks() -> List[str]:
-
-
+async def fetch_networks() -> List[Dict[str, Any]]:
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{API_URL}/affiliate_networks",
@@ -17,5 +15,4 @@ async def fetch_networks() -> List[str]:
         if response.status_code != 200:
             raise HTTPException(status_code=500, detail="Failed to fetch networks")
         
-        networks_data = response.json()
-        return [network["name"] for network in networks_data] 
+        return response.json() 
